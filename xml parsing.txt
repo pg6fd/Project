@@ -1,0 +1,151 @@
+package parse;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.awt.List;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URL;
+import org.w3c.dom.*;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.ParserConfigurationException;
+import org.xml.sax.SAXException; 
+
+public class xmlparsing{
+    
+	public static Map<String, String> method(String arg)throws SAXException, IOException, ParserConfigurationException, ClassNotFoundException
+    {
+    	//int[][] vc=null;
+    	int j;
+    	int i;
+    	//String[][] urln=new String[10][40];
+    	String[] lang=new String[20];
+    	String[] gen=new String[20];
+    	String[] art=new String[20];
+    	String[] thmbnail=new String[40];
+    
+    	Connection con = null;
+        PreparedStatement pst = null;
+        ResultSet rs = null;
+       Map<Integer, String> mapsort = new HashMap<Integer, String>();
+       Map<Integer, String> mapsortthb = new HashMap<Integer, String>();
+       Map<String,String> map3 = new HashMap<String,String>();
+        String url = "jdbc:mysql://vhost0057.site1.compute.ihost.com:3306/dataentry";
+        String user = "root";
+        String password = "root";
+
+    try{ 
+    		Class.forName("com.mysql.jdbc.Driver");
+            con = DriverManager.getConnection(url, user, password);
+            pst = con.prepareStatement("SELECT language,genre,artist FROM query WHERE groupname IN(SELECT  groupname FROM query GROUP BY groupname HAVING COUNT(*) > 2) ");
+            rs = pst.executeQuery();
+          
+            	j=0;
+            	while (rs.next())
+            	{
+                lang[j]=rs.getString(1);
+                gen[j]=rs.getString(2);
+                art[j]=rs.getString(3);
+                j++;
+            	}
+            		//System.out.println(language[1]);
+            	//  pst=con.prepareStatement("Truncate table query");
+                 //  pst.executeQuery();	
+                  	DocumentBuilderFactory docBuilderFactory = DocumentBuilderFactory.newInstance();
+    			DocumentBuilder docBuilder = docBuilderFactory.newDocumentBuilder();	
+        for(int k=0;k<j;k++)
+        	{		
+        		
+    			String crl="https://gdata.youtube.com/feeds/api/videos?q='"+art[k]+"'+'"+lang[k]+"'&max-results=40 ";
+        		Document doc=docBuilder.parse(new URL(crl).openStream());
+        		System.out.println(crl);
+        		doc.normalize();
+        		NodeList entrylist=doc.getElementsByTagName("entry");
+        		NodeList yttlist= doc.getElementsByTagName("yt:statistics");
+        		NodeList mdlist = doc.getElementsByTagName("media:player");
+        		for(i=0;i<entrylist.getLength()-1;i++)
+        			{
+        				Node ytlist=yttlist.item(i);
+        				Element ylist=(Element)ytlist;
+        				String viewcount=ylist.getAttribute("viewCount");
+        				int[] vc = new int[entrylist.getLength()-1];
+        		
+						vc[i]= Integer.parseInt(viewcount);
+        				Node mlist = mdlist.item(i);
+        				Element melist = (Element) mlist;
+        				String[] urln = new String[40];
+						urln[i] =melist.getAttribute("url");
+        			//	System.out.println("viewcount :"+vc[i]+"");
+        				mapsort.put(vc[i], urln[i]);
+        				NodeList thblist = doc.getElementsByTagName("media:thumbnail");
+        				Node thlist = thblist.item(i);
+        				Element tlist = (Element) thlist;			
+						thmbnail[i] = tlist.getAttribute("url");
+						mapsortthb.put(vc[i], thmbnail[i]);
+        			}
+        		
+        	}
+        Map<Integer, String> urlMap = new TreeMap<Integer, String>(mapsort);
+        NavigableMap durlmap=((NavigableMap) urlMap).descendingMap();
+        //printMap(durlmap);
+        Map<Integer, String> thbmap = new TreeMap<Integer, String>(mapsortthb);
+        NavigableMap dthbmap=((NavigableMap) thbmap).descendingMap();
+      //  printMap(dthbmap);
+        map3=joinMap(durlmap,dthbmap);
+       // printMap(map3);
+        		//return map3;
+        		
+        	}
+        catch (SQLException ex) 
+    		{
+        		Logger lgr = Logger.getLogger(xmlparsing.class.getName());
+        		lgr.log(Level.SEVERE, ex.getMessage(), ex);
+    		}
+	return map3;
+    
+    
+    }
+	private static Map<String, String> joinMap(NavigableMap<Integer,String> durlmap, NavigableMap<Integer,String> dthbmap) {
+		Map<String, String> map3 = new HashMap<String,String>();
+			Set set1 = durlmap.keySet();
+			Set set2= dthbmap.keySet();
+	      // Get an iterator
+			Iterator i = set1.iterator();
+			Iterator j=set2.iterator();
+			int key1,key2;
+		//Display elements
+	    	while(i.hasNext()) {   		
+		//	Map.Entry entry1 = (Map.Entry)i.next();
+	      //   Map.Entry entry2=(Map.Entry)j.next();
+	    		key1=(Integer) i.next();
+	    		key2=(Integer) j.next();
+	    		System.out.println(key1);
+	         String str1=(String) durlmap.get(key1);
+	         String str2=(String) dthbmap.get(key2);
+				map3.put(str1,str2);
+				//printMap(map3);
+		}
+	      return map3;
+	}
+	private static void printMap(Map<String, String> map3){
+		for (Map.Entry entry : map3.entrySet()) {
+			System.out.println("Key : " + entry.getKey() + " Value : "
+				+ entry.getValue());
+		// TODO Auto-generated method stub
+		}
+	}}
+
+    
